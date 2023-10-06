@@ -1,45 +1,58 @@
 #!/usr/bin/python3
-""""Fabric script that distributes an archive to web servers"""
+"""Fabric script that distributes an archive to web servers"""
 
 from fabric.api import *
 import os
 
-env.hosts = ['3.235.198.120', '3.239.50.204']
+env.hosts = ["3.235.198.120", "3.239.50.204"]
 
 
 def do_deploy(archive_path):
-    """Archive distributor"""
-    try:
-        try:
-            if os.path.exists(archive_path):
-                arc_tgz = archive_path.split("/")
-                arg_save = arc_tgz[1]
-                arc_tgz = arc_tgz[1].split('.')
-                arc_tgz = arc_tgz[0]
-
-                """Upload archive to the server"""
-                put(archive_path, '/tmp')
-
-                """Save folder paths in variables"""
-                uncomp_fold = '/data/web_static/releases/{}'.format(arc_tgz)
-                tmp_location = '/tmp/{}'.format(arg_save)
-
-                """Run remote commands on the server"""
-                run('mkdir -p {}'.format(uncomp_fold))
-                run('tar -xvzf {} -C {}'.format(tmp_location, uncomp_fold))
-                run('rm {}'.format(tmp_location))
-                run('mv {}/web_static/* {}'.format(uncomp_fold, uncomp_fold))
-                run('rm -rf {}/web_static'.format(uncomp_fold))
-                run('rm -rf /data/web_static/current')
-                run('ln -sf {} /data/web_static/current'.format(uncomp_fold))
-                run('sudo service nginx restart')
-                return True
-            else:
-                print('File does not exist')
-                return False
-        except Exception as err:
-            print(err)
-            return False
-    except Exception:
-        print('Error')
+    """Deploy the archive to web servers"""
+    if not os.path.exists(archive_path):
+        print("Error: The archive file does not exist.")
         return False
+
+    try:
+        # Extract archive filename and folder name
+        archive_filename = os.path.basename(archive_path)
+        folder_name = archive_filename.split(".")[0]
+
+        # Define remote paths
+        remote_tmp_path = "/tmp/{}".format(archive_filename)
+        remote_static_path = "/data/web_static/releases/{}".format(folder_name)
+        remote_current_path = "/data/web_static/current"
+
+        # Upload the archive to the server
+        put(archive_path, remote_tmp_path)
+
+        # Create directory for the new release
+        run("mkdir -p {}".format(remote_static_path))
+
+        # Extract the archive
+        run("tar -xzf {} -C {}".format(remote_tmp_path, remote_static_path))
+
+        # Delete the uploaded archive
+        run("rm {}".format(remote_tmp_path))
+
+        # Move contents to the proper location
+        run("mv {}/web_static/* {}".format(remote_static_path, remote_static_path))
+
+        # Remove the old symbolic link
+        run("rm -rf {}".format(remote_current_path))
+
+        # Create a new symbolic link
+        run("ln -s {} {}".format(remote_static_path, remote_current_path))
+
+        # Restart Nginx
+        run("sudo service nginx restart")
+
+        print("New version deployed successfully.")
+        return True
+    except Exception as e:
+        print("Error: {}".format(e))
+        return False
+
+
+if __name__ == "__main__":
+    do_deploy("your_archive_path.tar.gz")
