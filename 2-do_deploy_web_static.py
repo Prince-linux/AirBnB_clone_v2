@@ -1,28 +1,44 @@
-#!/usr/bin/python3
-"""web server distribution"""
-from fabric.api import *
-import os.path
+""""Fabric script that distributes an archive to web servers"""
 
-env.user = "ubuntu"
-env.hosts = ["104.196.155.240", "34.74.146.120"]
-env.key_filename = "~/id_rsa"
+from fabric.api import *
+import os
+
+env.hosts = ["3.235.198.120", "3.239.50.204"]
 
 
 def do_deploy(archive_path):
-    """distributes an archive to your web servers"""
-    if os.path.exists(archive_path) is False:
-        return False
+    """Archive distributor"""
     try:
-        arc = archive_path.split("/")
-        base = arc[1].strip(".tgz")
-        put(archive_path, "/tmp/")
-        sudo("mkdir -p /data/web_static/releases/{}".format(base))
-        main = "/data/web_static/releases/{}".format(base)
-        sudo("tar -xzf /tmp/{} -C {}/".format(arc[1], main))
-        sudo("rm /tmp/{}".format(arc[1]))
-        sudo("mv {}/web_static/* {}/".format(main, main))
-        sudo("rm -rf /data/web_static/current")
-        sudo('ln -s {}/ "/data/web_static/current"'.format(main))
-        return True
-    except:
+        try:
+            if os.path.exists(archive_path):
+                arc_tgz = archive_path.split("/")
+                arg_save = arc_tgz[1]
+                arc_tgz = arc_tgz[1].split(".")
+                arc_tgz = arc_tgz[0]
+
+                """Upload archive to the server"""
+                put(archive_path, "/tmp")
+
+                """Save folder paths in variables"""
+                uncomp_fold = "/data/web_static/releases/{}".format(arc_tgz)
+                tmp_location = "/tmp/{}".format(arg_save)
+
+                """Run remote commands on the server"""
+                run("mkdir -p {}".format(uncomp_fold))
+                run("tar -xvzf {} -C {}".format(tmp_location, uncomp_fold))
+                run("rm {}".format(tmp_location))
+                run("mv {}/web_static/* {}".format(uncomp_fold, uncomp_fold))
+                run("rm -rf {}/web_static".format(uncomp_fold))
+                run("rm -rf /data/web_static/current")
+                run("ln -sf {} /data/web_static/current".format(uncomp_fold))
+                run("sudo service nginx restart")
+                return True
+            else:
+                print("File does not exist")
+                return False
+        except Exception as err:
+            print(err)
+            return False
+    except Exception:
+        print("Error")
         return False
