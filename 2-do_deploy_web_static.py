@@ -1,58 +1,28 @@
 #!/usr/bin/python3
-"""Fabric script that distributes an archive to web servers"""
-
+"""web server distribution"""
 from fabric.api import *
-import os
+import os.path
 
-env.hosts = ["3.235.198.120", "3.239.50.204"]
+env.user = "ubuntu"
+env.hosts = ["104.196.155.240", "34.74.146.120"]
+env.key_filename = "~/id_rsa"
 
 
 def do_deploy(archive_path):
-    """Deploy the archive to web servers"""
-    if not os.path.exists(archive_path):
-        print("Error: The archive file does not exist.")
+    """distributes an archive to your web servers"""
+    if os.path.exists(archive_path) is False:
         return False
-
     try:
-        # Extract archive filename and folder name
-        archive_filename = os.path.basename(archive_path)
-        folder_name = archive_filename.split(".")[0]
-
-        # Define remote paths
-        remote_tmp_path = "/tmp/{}".format(archive_filename)
-        remote_static_path = "/data/web_static/releases/{}".format(folder_name)
-        remote_current_path = "/data/web_static/current"
-
-        # Upload the archive to the server
-        put(archive_path, remote_tmp_path)
-
-        # Create directory for the new release
-        run("mkdir -p {}".format(remote_static_path))
-
-        # Extract the archive
-        run("tar -xzf {} -C {}".format(remote_tmp_path, remote_static_path))
-
-        # Delete the uploaded archive
-        run("rm {}".format(remote_tmp_path))
-
-        # Move contents to the proper location
-        run("mv {}/web_static/* {}".format(remote_static_path, remote_static_path))
-
-        # Remove the old symbolic link
-        run("rm -rf {}".format(remote_current_path))
-
-        # Create a new symbolic link
-        run("ln -s {} {}".format(remote_static_path, remote_current_path))
-
-        # Restart Nginx
-        run("sudo service nginx restart")
-
-        print("New version deployed successfully.")
+        arc = archive_path.split("/")
+        base = arc[1].strip(".tgz")
+        put(archive_path, "/tmp/")
+        sudo("mkdir -p /data/web_static/releases/{}".format(base))
+        main = "/data/web_static/releases/{}".format(base)
+        sudo("tar -xzf /tmp/{} -C {}/".format(arc[1], main))
+        sudo("rm /tmp/{}".format(arc[1]))
+        sudo("mv {}/web_static/* {}/".format(main, main))
+        sudo("rm -rf /data/web_static/current")
+        sudo('ln -s {}/ "/data/web_static/current"'.format(main))
         return True
-    except Exception as e:
-        print("Error: {}".format(e))
+    except:
         return False
-
-
-if __name__ == "__main__":
-    do_deploy("your_archive_path.tar.gz")

@@ -1,27 +1,34 @@
 #!/usr/bin/python3
-"""Clean all archives based on the number of arguments passed"""
+"""web server distribution"""
+from fabric.api import *
+from fabric.state import commands, connections
+import os.path
 
-from fabric.api import local
+env.user = "ubuntu"
+env.hosts = ["104.196.155.240", "34.74.146.120"]
+env.key_filename = "~/id_rsa"
 
 
 def do_clean(number=0):
-    """Cleans all .tgz files"""
+    """deletes out-of-date archives"""
+    local("ls -t ~/AirBnB_Clone_V2/versions/").split()
+    with cd("/data/web_static/releases"):
+        target_R = sudo("ls -t .").split()
+    paths = "/data/web_static/releases"
     number = int(number)
-
-    # Define the directory where .tgz files are stored
-    path = "versions"
-
-    # List all .tgz files, sorted by modification time (newest first)
-    files = local('ls -t {}/ | grep ".tgz"'.format(path), capture=True).split()
-
-    # Ensure we keep at least the most recent two files
-    files_to_keep = 2
-
-    if number > files_to_keep:
-        files_to_remove = files[files_to_keep:number]
-        for file in files_to_remove:
-            local("rm {}/{}".format(path, file))
-
-
-if __name__ == "__main__":
-    do_clean()
+    if number == 0:
+        num = 1
+    else:
+        num = number
+    if len(target_R) > 0:
+        if len(target) == number or len(target) == 0:
+            pass
+        else:
+            cl = target[num:]
+            for i in range(len(cl)):
+                local("rm -f ~/AirBnB_Clone_V2/versions/{}".format(target[-1]))
+        rem = target_R[num:]
+        for j in range(len(rem)):
+            sudo("rm -rf {}/{}".format(paths, rem[-1].strip(".tgz")))
+    else:
+        pass
